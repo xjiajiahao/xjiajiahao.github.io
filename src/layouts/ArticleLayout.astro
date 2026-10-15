@@ -1,0 +1,122 @@
+---
+import type { MarkdownHeading } from "astro";
+import BaseLayout from "./BaseLayout.astro";
+import { formatDate, type BlogPost } from "../lib/posts";
+
+interface Props {
+  post: BlogPost;
+  headings: MarkdownHeading[];
+}
+
+const { post, headings } = Astro.props;
+const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+---
+
+<BaseLayout
+  title={post.data.title}
+  description={post.data.description}
+  type="article"
+  publishedAt={post.data.publishedAt}
+  tags={post.data.tags}
+>
+  <div class="reading-progress" aria-hidden="true"><span></span></div>
+  <article class="article-page">
+    <header class:list={["article-hero", `accent-${post.data.accent}`]}>
+      <a class="back-link" href="/articles/">← 返回文章列表</a>
+      <div class="article-eyebrow">
+        <span>RESEARCH NOTE</span>
+        <span>{formatDate(post.data.publishedAt)}</span>
+      </div>
+      <h1>{post.data.title}</h1>
+      <p>{post.data.description}</p>
+      <div class="article-meta">
+        <div class="tag-list">
+          {post.data.tags.map((tag) => <a href={`/articles/?tag=${encodeURIComponent(tag)}`}>{tag}</a>)}
+        </div>
+        <span>约 {post.data.readingMinutes} 分钟</span>
+      </div>
+    </header>
+
+    <div class="article-grid">
+      <div class="prose">
+        <slot />
+      </div>
+
+      {toc.length > 0 && (
+        <aside class="toc" aria-label="文章目录">
+          <p>本文目录</p>
+          <ol>
+            {toc.map((heading) => (
+              <li class:list={[`depth-${heading.depth}`]}>
+                <a href={`#${heading.slug}`}>{heading.text}</a>
+              </li>
+            ))}
+          </ol>
+          <a class="to-top" href="#main-content">回到顶部 ↑</a>
+        </aside>
+      )}
+    </div>
+  </article>
+
+  <script>
+    const renderMermaid = async () => {
+      const diagrams = document.querySelectorAll<HTMLPreElement>('pre[data-language="mermaid"]');
+      diagrams.forEach((diagram) => {
+        const source = diagram.textContent ?? "";
+        const wrapper = document.createElement("pre");
+        wrapper.className = "mermaid";
+        wrapper.textContent = source;
+        diagram.replaceWith(wrapper);
+      });
+
+      if (diagrams.length > 0) {
+        const { default: mermaid } = await import("mermaid");
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "strict",
+          theme: "base",
+          fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+          themeVariables: {
+            primaryColor: "#e7efff",
+            primaryTextColor: "#17233d",
+            primaryBorderColor: "#3566a8",
+            lineColor: "#5f6b7c",
+            secondaryColor: "#fff1df",
+            tertiaryColor: "#eef6ef",
+          },
+        });
+        await mermaid.run({ querySelector: ".mermaid" });
+      }
+    };
+
+    renderMermaid();
+
+    const progress = document.querySelector<HTMLElement>(".reading-progress span");
+    const updateProgress = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      const ratio = max > 0 ? window.scrollY / max : 0;
+      if (progress) progress.style.transform = `scaleX(${Math.min(1, ratio)})`;
+    };
+    updateProgress();
+    window.addEventListener("scroll", updateProgress, { passive: true });
+
+    const tocLinks = [...document.querySelectorAll<HTMLAnchorElement>(".toc a[href^='#']")];
+    const targets = tocLinks
+      .map((link) => document.getElementById(decodeURIComponent(link.hash.slice(1))))
+      .filter((node): node is HTMLElement => Boolean(node));
+
+    if (targets.length > 0) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const visible = entries.find((entry) => entry.isIntersecting);
+          if (!visible) return;
+          tocLinks.forEach((link) => {
+            link.classList.toggle("active", link.hash === `#${visible.target.id}`);
+          });
+        },
+        { rootMargin: "-15% 0px -75%", threshold: 0 },
+      );
+      targets.forEach((target) => observer.observe(target));
+    }
+  </script>
+</BaseLayout>

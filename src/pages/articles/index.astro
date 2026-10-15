@@ -1,0 +1,72 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ArticleCard from "../../components/ArticleCard.astro";
+import { getPublishedPosts } from "../../lib/posts";
+
+const posts = await getPublishedPosts();
+const tags = [...new Set(posts.flatMap((post) => post.data.tags))].sort((a, b) => a.localeCompare(b, "zh-CN"));
+---
+
+<BaseLayout title="全部文章" description="记录谢bro的研究随想和见闻。">
+  <section class="archive-hero">
+    <p class="section-label">ALL ENTRIES / {String(posts.length).padStart(2, "0")}</p>
+    <h1>研究文章</h1>
+    <p>按主题浏览，或者搜索一个正在困扰你的关键词。</p>
+
+    <div class="filter-panel">
+      <label class="search-box">
+        <span aria-hidden="true">⌕</span>
+        <span class="sr-only">搜索文章</span>
+        <input id="article-search" type="search" placeholder="搜索标题、摘要或标签…" autocomplete="off" />
+      </label>
+      <div class="tag-filters" aria-label="按标签筛选">
+        <button class="active" type="button" data-tag="">全部</button>
+        {tags.map((tag) => <button type="button" data-tag={tag}>{tag}</button>)}
+      </div>
+    </div>
+  </section>
+
+  <section class="archive-list" aria-live="polite">
+    <p class="result-count"><span>{posts.length}</span> 篇文章</p>
+    <div class="article-list">
+      {posts.map((post) => <ArticleCard post={post} />)}
+    </div>
+    <p class="empty-state" hidden>没有找到匹配的文章。换一个关键词试试。</p>
+  </section>
+
+  <script>
+    const input = document.querySelector<HTMLInputElement>("#article-search");
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>("[data-tag]")];
+    const cards = [...document.querySelectorAll<HTMLElement>("[data-article]")];
+    const counter = document.querySelector<HTMLElement>(".result-count span");
+    const empty = document.querySelector<HTMLElement>(".empty-state");
+    let activeTag = new URLSearchParams(location.search).get("tag") ?? "";
+
+    const apply = () => {
+      const query = input?.value.trim().toLowerCase() ?? "";
+      let visible = 0;
+      cards.forEach((card) => {
+        const matchesText = !query || card.dataset.search?.includes(query);
+        const matchesTag = !activeTag || card.dataset.tags?.split("|").includes(activeTag);
+        const show = Boolean(matchesText && matchesTag);
+        card.hidden = !show;
+        if (show) visible += 1;
+      });
+      if (counter) counter.textContent = String(visible);
+      if (empty) empty.hidden = visible > 0;
+      buttons.forEach((button) => button.classList.toggle("active", button.dataset.tag === activeTag));
+    };
+
+    input?.addEventListener("input", apply);
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        activeTag = button.dataset.tag ?? "";
+        const url = new URL(location.href);
+        activeTag ? url.searchParams.set("tag", activeTag) : url.searchParams.delete("tag");
+        history.replaceState({}, "", url);
+        apply();
+      });
+    });
+    apply();
+  </script>
+</BaseLayout>

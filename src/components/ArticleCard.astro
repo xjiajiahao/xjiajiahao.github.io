@@ -1,0 +1,30 @@
+---
+import type { BlogPost } from "../lib/posts";
+import { formatDate } from "../lib/posts";
+
+interface Props {
+  post: BlogPost;
+  featured?: boolean;
+}
+
+const { post, featured = false } = Astro.props;
+---
+
+<article
+  class:list={["article-card", `accent-${post.data.accent}`, { featured }]}
+  data-article
+  data-search={`${post.data.title} ${post.data.description} ${post.data.tags.join(" ")}`.toLowerCase()}
+  data-tags={post.data.tags.join("|")}
+>
+  <div class="card-kicker">
+    <span>{formatDate(post.data.publishedAt)}</span>
+  </div>
+  <h2><a href={`/articles/${post.id}/`}>{post.data.title}</a></h2>
+  <p>{post.data.description}</p>
+  <div class="card-footer">
+    <div class="tag-list" aria-label="文章标签">
+      {post.data.tags.slice(0, 4).map((tag) => <span>{tag}</span>)}
+    </div>
+    <span class="read-time">约 {post.data.readingMinutes} 分钟</span>
+  </div>
+</article>
