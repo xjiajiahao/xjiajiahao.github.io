@@ -1,11 +1,12 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { withBase } from "../lib/url";
 ---
 
 <BaseLayout title="关于" description="记录谢bro的研究随想和见闻。">
   <section class="about-page">
     <h1>关于</h1>
     <p>记录谢bro的研究随想和见闻。</p>
-    <a class="text-link" href="/articles/">浏览全部文章 →</a>
+    <a class="text-link" href={withBase("/articles/")}>浏览全部文章 →</a>
   </section>
 </BaseLayout>

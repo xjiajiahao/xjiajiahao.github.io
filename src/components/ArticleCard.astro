@@ -1,6 +1,7 @@
 ---
 import type { BlogPost } from "../lib/posts";
 import { formatDate } from "../lib/posts";
+import { withBase } from "../lib/url";
 
 interface Props {
   post: BlogPost;
@@ -16,7 +17,7 @@ const { post, featured = false } = Astro.props;
   data-search={`${post.data.title} ${post.data.description} ${post.data.tags.join(" ")}`.toLowerCase()}
   data-tags={post.data.tags.join("|")}
 >
-  <h2><a href={`/articles/${post.id}/`}>{post.data.title}</a></h2>
+  <h2><a href={withBase(`/articles/${post.id}/`)}>{post.data.title}</a></h2>
   <div class="card-meta">
     <time datetime={post.data.publishedAt.toISOString()}>{formatDate(post.data.publishedAt)}</time>
     <span aria-hidden="true">·</span>

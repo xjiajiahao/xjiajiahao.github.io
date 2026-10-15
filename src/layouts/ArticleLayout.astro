@@ -2,6 +2,7 @@
 import type { MarkdownHeading } from "astro";
 import BaseLayout from "./BaseLayout.astro";
 import { formatDate, type BlogPost } from "../lib/posts";
+import { withBase } from "../lib/url";
 
 interface Props {
   post: BlogPost;
@@ -22,7 +23,7 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
   <div class="reading-progress" aria-hidden="true"><span></span></div>
   <article class="article-page">
     <header class="article-hero">
-      <a class="back-link" href="/articles/">← 返回文章列表</a>
+      <a class="back-link" href={withBase("/articles/")}>← 返回文章列表</a>
       <h1>{post.data.title}</h1>
       <div class="article-byline">
         <time datetime={post.data.publishedAt.toISOString()}>{formatDate(post.data.publishedAt)}</time>
@@ -31,7 +32,7 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
       </div>
       <p>{post.data.description}</p>
       <div class="tag-list article-tags">
-        {post.data.tags.map((tag) => <a href={`/articles/?tag=${encodeURIComponent(tag)}`}>#{tag}</a>)}
+        {post.data.tags.map((tag) => <a href={withBase(`/articles/?tag=${encodeURIComponent(tag)}`)}>#{tag}</a>)}
       </div>
     </header>
 

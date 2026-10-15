@@ -1,4 +1,6 @@
 ---
+import { isCurrent, withBase } from "../lib/url";
+
 const pathname = Astro.url.pathname;
 const links = [
   { href: "/", label: "首页" },
@@ -8,29 +10,21 @@ const links = [
 ---
 
 <header class="site-header">
-  <a class="brand" href="/" aria-label="谢bro的研究笔记首页">谢bro的研究笔记</a>
+  <a class="brand" href={withBase("/")} aria-label="谢bro的研究笔记首页">谢bro的研究笔记</a>
 
   <div class="header-actions">
     <nav aria-label="主导航">
       {
         links.map((link) => (
           <a
-            href={link.href}
-            aria-current={
-              link.href === "/"
-                ? pathname === "/"
-                  ? "page"
-                  : undefined
-                : pathname.startsWith(link.href)
-                  ? "page"
-                  : undefined
-            }
+            href={withBase(link.href)}
+            aria-current={isCurrent(pathname, link.href) ? "page" : undefined}
           >
             {link.label}
           </a>
         ))
       }
-      <a href="/rss.xml">RSS</a>
+      <a href={withBase("/rss.xml")}>RSS</a>
     </nav>
 
     <button class="theme-toggle" type="button" aria-label="切换深浅色主题" title="切换深浅色主题">

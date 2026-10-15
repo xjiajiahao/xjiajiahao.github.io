@@ -1,8 +1,12 @@
+---
+import { withBase } from "../lib/url";
+---
+
 <footer class="site-footer">
   <p>© {new Date().getFullYear()} 谢bro</p>
   <nav aria-label="页脚导航">
-    <a href="/articles/">文章</a>
-    <a href="/rss.xml">RSS</a>
+    <a href={withBase("/articles/")}>文章</a>
+    <a href={withBase("/rss.xml")}>RSS</a>
     <a href="https://github.com/xjiajiahao" rel="me">GitHub</a>
   </nav>
 </footer>

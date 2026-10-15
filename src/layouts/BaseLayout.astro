@@ -3,6 +3,7 @@ import "katex/dist/katex.min.css";
 import "../styles/global.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import { withBase } from "../lib/url";
 
 interface Props {
   title?: string;
@@ -24,7 +25,7 @@ const {
 const siteName = "谢bro的研究笔记";
 const pageTitle = title ? `${title}｜${siteName}` : siteName;
 const canonical = new URL(Astro.url.pathname, Astro.site);
-const imageUrl = new URL(image, Astro.site);
+const imageUrl = new URL(withBase(image), Astro.site);
 const structuredData = type === "article"
   ? {
       "@context": "https://schema.org",
@@ -54,8 +55,8 @@ const structuredData = type === "article"
     <meta name="description" content={description} />
     <meta name="theme-color" content="#fdfdfd" />
     <link rel="canonical" href={canonical} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="alternate" type="application/rss+xml" title={siteName} href="/rss.xml" />
+    <link rel="icon" type="image/svg+xml" href={withBase("/favicon.svg")} />
+    <link rel="alternate" type="application/rss+xml" title={siteName} href={withBase("/rss.xml")} />
     <meta property="og:type" content={type} />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
