@@ -8,36 +8,34 @@ const links = [
 ---
 
 <header class="site-header">
-  <a class="brand" href="/" aria-label="谢bro的研究笔记首页">
-    <span class="brand-mark" aria-hidden="true">谢</span>
-    <span>
-      <strong>谢bro</strong>
-      <small>研究笔记</small>
-    </span>
-  </a>
+  <a class="brand" href="/" aria-label="谢bro的研究笔记首页">谢bro的研究笔记</a>
 
-  <nav aria-label="主导航">
-    {
-      links.map((link) => (
-        <a
-          href={link.href}
-          aria-current={
-            link.href === "/"
-              ? pathname === "/"
-                ? "page"
-                : undefined
-              : pathname.startsWith(link.href)
-                ? "page"
-                : undefined
-          }
-        >
-          {link.label}
-        </a>
-      ))
-    }
-  </nav>
+  <div class="header-actions">
+    <nav aria-label="主导航">
+      {
+        links.map((link) => (
+          <a
+            href={link.href}
+            aria-current={
+              link.href === "/"
+                ? pathname === "/"
+                  ? "page"
+                  : undefined
+                : pathname.startsWith(link.href)
+                  ? "page"
+                  : undefined
+            }
+          >
+            {link.label}
+          </a>
+        ))
+      }
+      <a href="/rss.xml">RSS</a>
+    </nav>
 
-  <button class="theme-toggle" type="button" aria-label="切换深浅色主题">
-    <span class="theme-icon" aria-hidden="true">◐</span>
-  </button>
+    <button class="theme-toggle" type="button" aria-label="切换深浅色主题" title="切换深浅色主题">
+      <span class="theme-light" aria-hidden="true">☼</span>
+      <span class="theme-dark" aria-hidden="true">☾</span>
+    </button>
+  </div>
 </header>

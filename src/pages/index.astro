@@ -4,65 +4,22 @@ import ArticleCard from "../components/ArticleCard.astro";
 import { getPublishedPosts } from "../lib/posts";
 
 const posts = await getPublishedPosts();
-const featured = posts[0];
-const totalMinutes = posts.reduce((sum, post) => sum + post.data.readingMinutes, 0);
-const allTags = new Set(posts.flatMap((post) => post.data.tags));
 ---
 
 <BaseLayout>
-  <section class="home-hero">
-    <div class="hero-copy">
-      <p class="section-label">RESEARCH LOG / 2026</p>
-      <h1>谢bro的<br /><em>研究笔记</em></h1>
-      <p class="hero-intro">记录谢bro的研究随想和见闻。</p>
-      <div class="hero-actions">
-        <a class="button primary" href="/articles/">开始阅读 <span>→</span></a>
-        <a class="button text" href="/about/">关于这本笔记</a>
-      </div>
+  <section class="paper-hero">
+    <div class="hero-title-row">
+      <h1>谢bro的研究笔记</h1>
+      <a class="rss-link" href="/rss.xml" aria-label="RSS 订阅" title="RSS 订阅">RSS</a>
     </div>
-
-    <aside class="index-board" aria-label="研究索引">
-      <div class="board-header">
-        <span>研究索引</span>
-        <span class="status-dot">持续更新</span>
-      </div>
-      <div class="stat-grid">
-        <div><strong>{String(posts.length).padStart(2, "0")}</strong><span>篇长文</span></div>
-        <div><strong>{String(allTags.size).padStart(2, "0")}</strong><span>个主题</span></div>
-        <div><strong>{String(totalMinutes)}</strong><span>分钟阅读</span></div>
-        <div><strong>2026</strong><span>开始记录</span></div>
-      </div>
-      <div class="topic-stack">
-        <span>01 / Foundation Models</span>
-        <span>02 / Retrieval Systems</span>
-        <span>03 / Post-training</span>
-        <span>04 / Agent Architecture</span>
-      </div>
-    </aside>
+    <p>记录谢bro的研究随想和见闻。</p>
   </section>
 
-  {featured && (
-    <section class="latest-section">
-      <div class="section-heading">
-        <div>
-          <p class="section-label">LATEST ENTRY</p>
-          <h2>最新文章</h2>
-        </div>
-        <a href="/articles/">查看全部 {posts.length} 篇 →</a>
-      </div>
-      <ArticleCard post={featured} featured />
-    </section>
-  )}
-
-  <section class="recent-section">
-    <div class="section-heading">
-      <div>
-        <p class="section-label">RECENT NOTES</p>
-        <h2>最近文章</h2>
-      </div>
-    </div>
+  <section class="post-section">
+    <h2>最近文章</h2>
     <div class="article-list">
-      {posts.slice(1, 4).map((post) => <ArticleCard post={post} />)}
+      {posts.slice(0, 5).map((post, index) => <ArticleCard post={post} featured={index === 0} />)}
     </div>
+    <a class="all-posts-link" href="/articles/">全部文章 →</a>
   </section>
 </BaseLayout>

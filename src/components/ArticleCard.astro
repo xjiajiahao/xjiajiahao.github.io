@@ -11,20 +11,19 @@ const { post, featured = false } = Astro.props;
 ---
 
 <article
-  class:list={["article-card", `accent-${post.data.accent}`, { featured }]}
+  class:list={["article-card", { featured }]}
   data-article
   data-search={`${post.data.title} ${post.data.description} ${post.data.tags.join(" ")}`.toLowerCase()}
   data-tags={post.data.tags.join("|")}
 >
-  <div class="card-kicker">
-    <span>{formatDate(post.data.publishedAt)}</span>
-  </div>
   <h2><a href={`/articles/${post.id}/`}>{post.data.title}</a></h2>
+  <div class="card-meta">
+    <time datetime={post.data.publishedAt.toISOString()}>{formatDate(post.data.publishedAt)}</time>
+    <span aria-hidden="true">·</span>
+    <span>约 {post.data.readingMinutes} 分钟</span>
+  </div>
   <p>{post.data.description}</p>
-  <div class="card-footer">
-    <div class="tag-list" aria-label="文章标签">
-      {post.data.tags.slice(0, 4).map((tag) => <span>{tag}</span>)}
-    </div>
-    <span class="read-time">约 {post.data.readingMinutes} 分钟</span>
+  <div class="tag-list" aria-label="文章标签">
+    {post.data.tags.slice(0, 4).map((tag) => <span>#{tag}</span>)}
   </div>
 </article>

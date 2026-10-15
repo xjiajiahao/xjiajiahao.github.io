@@ -9,25 +9,23 @@ const tags = [...new Set(posts.flatMap((post) => post.data.tags))].sort((a, b) =
 
 <BaseLayout title="全部文章" description="记录谢bro的研究随想和见闻。">
   <section class="archive-hero">
-    <p class="section-label">ALL ENTRIES / {String(posts.length).padStart(2, "0")}</p>
-    <h1>研究文章</h1>
-    <p>按主题浏览，或者搜索一个正在困扰你的关键词。</p>
+    <h1>文章</h1>
+    <p>共 {posts.length} 篇</p>
 
     <div class="filter-panel">
       <label class="search-box">
-        <span aria-hidden="true">⌕</span>
         <span class="sr-only">搜索文章</span>
-        <input id="article-search" type="search" placeholder="搜索标题、摘要或标签…" autocomplete="off" />
+        <input id="article-search" type="search" placeholder="搜索文章…" autocomplete="off" />
       </label>
       <div class="tag-filters" aria-label="按标签筛选">
         <button class="active" type="button" data-tag="">全部</button>
-        {tags.map((tag) => <button type="button" data-tag={tag}>{tag}</button>)}
+        {tags.map((tag) => <button type="button" data-tag={tag}>#{tag}</button>)}
       </div>
     </div>
   </section>
 
   <section class="archive-list" aria-live="polite">
-    <p class="result-count"><span>{posts.length}</span> 篇文章</p>
+    <p class="result-count">显示 <span>{posts.length}</span> 篇文章</p>
     <div class="article-list">
       {posts.map((post) => <ArticleCard post={post} />)}
     </div>
