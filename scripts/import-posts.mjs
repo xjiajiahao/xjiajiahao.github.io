@@ -44,12 +44,12 @@ const posts = [
     accent: "violet",
   },
   {
-    source: "week_04/agent-architecture-tools-memory-and-reliable-execution.md",
+    source: "week_04/agent-systems-harness-tools-memory-security.md",
     slug: "agent-architecture-tools-memory-and-reliable-execution",
-    title: "Agent 智能体：架构、工具、记忆与可靠执行",
-    description: "从真实任务闭环出发，分析 Agent 的规划、工具、记忆、权限、评测与失败恢复如何共同支撑可靠执行。",
+    title: "Agent 智能体系统：从执行闭环到 Harness 设计",
+    description: "从任务执行闭环出发，梳理 Harness 的执行控制、上下文与记忆、工具与协议、安全隔离、验证和恢复。",
     publishedAt: "2026-10-15",
-    tags: ["Agent", "工具调用", "记忆", "可靠性"],
+    tags: ["Agent", "Harness", "工具调用", "记忆"],
     accent: "blue",
   },
 ];
