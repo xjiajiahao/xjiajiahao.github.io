@@ -1,0 +1,332 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><meta name="generator" content="Astro v7.4.0"><meta name="description" content="从任务执行闭环出发，梳理 Harness 的执行控制、上下文与记忆、工具与协议、安全隔离、验证和恢复。"><meta name="theme-color" content="#fdfdfd"><link rel="canonical" href="https://xjiajiahao.github.io/articles/agent-architecture-tools-memory-and-reliable-execution/"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><link rel="alternate" type="application/rss+xml" title="谢bro的研究笔记" href="/rss.xml"><meta property="og:type" content="article"><meta property="og:title" content="Agent 智能体系统：从执行闭环到 Harness 设计｜谢bro的研究笔记"><meta property="og:description" content="从任务执行闭环出发，梳理 Harness 的执行控制、上下文与记忆、工具与协议、安全隔离、验证和恢复。"><meta property="og:url" content="https://xjiajiahao.github.io/articles/agent-architecture-tools-memory-and-reliable-execution/"><meta property="og:image" content="https://xjiajiahao.github.io/og-default.svg"><meta name="twitter:card" content="summary_large_image"><title>Agent 智能体系统：从执行闭环到 Harness 设计｜谢bro的研究笔记</title><script>
+      const savedTheme = localStorage.getItem("theme");
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.dataset.theme = savedTheme || (prefersDark ? "dark" : "light");
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"Agent 智能体系统：从执行闭环到 Harness 设计","description":"从任务执行闭环出发，梳理 Harness 的执行控制、上下文与记忆、工具与协议、安全隔离、验证和恢复。","datePublished":"2026-10-15T00:00:00.000Z","keywords":["Agent","Harness","工具调用","记忆"],"mainEntityOfPage":"https://xjiajiahao.github.io/articles/agent-architecture-tools-memory-and-reliable-execution/","author":{"@type":"Person","name":"谢bro"}}</script><link rel="stylesheet" href="/_astro/BaseLayout.C80yFopP.css"></head><body><a class="skip-link" href="#main-content">跳到正文</a><div class="page-shell"><header class="site-header"><a class="brand" href="/" aria-label="谢bro的研究笔记首页">谢bro的研究笔记</a><div class="header-actions"><nav aria-label="主导航"><a href="/">首页</a><a href="/articles/" aria-current="page">文章</a><a href="/about/">关于</a><a href="/rss.xml">RSS</a></nav><button class="theme-toggle" type="button" aria-label="切换深浅色主题" title="切换深浅色主题"><span class="theme-light" aria-hidden="true">☼</span><span class="theme-dark" aria-hidden="true">☾</span></button></div></header><main id="main-content"><div class="reading-progress" aria-hidden="true"><span></span></div><article class="article-page"><header class="article-hero"><a class="back-link" href="/articles/">← 返回文章列表</a><h1>Agent 智能体系统：从执行闭环到 Harness 设计</h1><div class="article-byline"><time datetime="2026-10-15T00:00:00.000Z">2026年10月15日</time><span aria-hidden="true">·</span><span>约 15 分钟</span></div><p>从任务执行闭环出发，梳理 Harness 的执行控制、上下文与记忆、工具与协议、安全隔离、验证和恢复。</p><div class="tag-list article-tags"><a href="/articles/?tag=Agent">#Agent</a><a href="/articles/?tag=Harness">#Harness</a><a href="/articles/?tag=%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8">#工具调用</a><a href="/articles/?tag=%E8%AE%B0%E5%BF%86">#记忆</a></div></header><details class="toc"><summary>目录</summary><nav aria-label="文章目录"><ol><li class="depth-2"><a href="#1-agent-与-harness-架构">1. Agent 与 Harness 架构</a></li><li class="depth-3"><a href="#11-一次任务的执行闭环">1.1 一次任务的执行闭环</a></li><li class="depth-3"><a href="#12-harness-的主要模块">1.2 Harness 的主要模块</a></li><li class="depth-2"><a href="#2-执行控制">2. 执行控制</a></li><li class="depth-3"><a href="#21-固定流程与动态决策">2.1 固定流程与动态决策</a></li><li class="depth-3"><a href="#22-react-与-plan-and-execute">2.2 ReAct 与 Plan-and-Execute</a></li><li class="depth-3"><a href="#23-多智能体分工">2.3 多智能体分工</a></li><li class="depth-3"><a href="#24-进展判断与停止条件">2.4 进展判断与停止条件</a></li><li class="depth-2"><a href="#3-上下文与知识">3. 上下文与知识</a></li><li class="depth-3"><a href="#31-当前输入与持久记录">3.1 当前输入与持久记录</a></li><li class="depth-3"><a href="#32-长任务中的信息取舍">3.2 长任务中的信息取舍</a></li><li class="depth-3"><a href="#33-记忆的写入与读取">3.3 记忆的写入与读取</a></li><li class="depth-3"><a href="#34-skill按需加载任务方法">3.4 Skill：按需加载任务方法</a></li><li class="depth-2"><a href="#4-能力接入">4. 能力接入</a></li><li class="depth-3"><a href="#41-工具调用从请求到执行">4.1 工具调用：从请求到执行</a></li><li class="depth-3"><a href="#42-mcp复用外部工具与数据服务">4.2 MCP：复用外部工具与数据服务</a></li><li class="depth-3"><a href="#43-a2a向独立智能体委派任务">4.3 A2A：向独立智能体委派任务</a></li><li class="depth-2"><a href="#5-安全隔离">5. 安全隔离</a></li><li class="depth-3"><a href="#51-外部内容与执行权限">5.1 外部内容与执行权限</a></li><li class="depth-3"><a href="#52-沿执行过程设置防线">5.2 沿执行过程设置防线</a></li><li class="depth-2"><a href="#6-验证与恢复">6. 验证与恢复</a></li><li class="depth-3"><a href="#61-验收与反馈修改">6.1 验收与反馈修改</a></li><li class="depth-3"><a href="#62-中断恢复与安全重试">6.2 中断恢复与安全重试</a></li><li class="depth-3"><a href="#63-执行记录与持续评测">6.3 执行记录与持续评测</a></li><li class="depth-2"><a href="#总结">总结</a></li><li class="depth-2"><a href="#参考资料">参考资料</a></li><li class="depth-3"><a href="#agent-架构与工作模式">Agent 架构与工作模式</a></li><li class="depth-3"><a href="#function-callingmcp-与-skills">Function calling、MCP 与 Skills</a></li><li class="depth-3"><a href="#a2a-与云端-agent">A2A 与云端 Agent</a></li><li class="depth-3"><a href="#记忆上下文安全与自进化">记忆、上下文、安全与自进化</a></li></ol></nav></details><div class="prose"><h2 id="1-agent-与-harness-架构">1. Agent 与 Harness 架构</h2>
+<h3 id="11-一次任务的执行闭环">1.1 一次任务的执行闭环</h3>
+<p>让大语言模型（Large Language Model，LLM）解释测试失败的原因，它可以根据输入给出分析。让它实际修复导致测试失败的代码缺陷，还需要读取代码、修改文件、运行测试，并根据结果继续处理。这些操作由模型之外的程序执行。</p>
+<p>Agent（智能体）把模型判断与外部操作连接成循环。以修复代码缺陷为例，一次任务可能这样推进：</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="mermaid"><code><span class="line"><span style="color:#FF7B72">sequenceDiagram</span></span>
+<span class="line"><span style="color:#FF7B72">    participant</span><span style="color:#FFA657"> U</span><span style="color:#FF7B72"> as</span><span style="color:#A5D6FF"> 用户</span></span>
+<span class="line"><span style="color:#FF7B72">    participant</span><span style="color:#FFA657"> H</span><span style="color:#FF7B72"> as</span><span style="color:#A5D6FF"> Harness</span></span>
+<span class="line"><span style="color:#FF7B72">    participant</span><span style="color:#FFA657"> M</span><span style="color:#FF7B72"> as</span><span style="color:#A5D6FF"> 模型</span></span>
+<span class="line"><span style="color:#FF7B72">    participant</span><span style="color:#FFA657"> T</span><span style="color:#FF7B72"> as</span><span style="color:#A5D6FF"> 文件与测试工具</span></span>
+<span class="line"><span style="color:#FFA657">    U</span><span style="color:#FF7B72">->></span><span style="color:#FFA657">H</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 修复导致测试失败的代码缺陷，保持公开接口不变</span></span>
+<span class="line"><span style="color:#FFA657">    H</span><span style="color:#FF7B72">->></span><span style="color:#FFA657">M</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 目标、约束、失败信息与可用工具</span></span>
+<span class="line"><span style="color:#FFA657">    M</span><span style="color:#FF7B72">-->></span><span style="color:#FFA657">H</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 请求读取相关代码</span></span>
+<span class="line"><span style="color:#FFA657">    H</span><span style="color:#FF7B72">->></span><span style="color:#FFA657">T</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 检查权限后读取文件</span></span>
+<span class="line"><span style="color:#FFA657">    T</span><span style="color:#FF7B72">-->></span><span style="color:#FFA657">H</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 文件内容</span></span>
+<span class="line"><span style="color:#FFA657">    H</span><span style="color:#FF7B72">->></span><span style="color:#FFA657">M</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 补入读取结果</span></span>
+<span class="line"><span style="color:#FFA657">    M</span><span style="color:#FF7B72">-->></span><span style="color:#FFA657">H</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 请求修改代码并运行测试</span></span>
+<span class="line"><span style="color:#FFA657">    H</span><span style="color:#FF7B72">->></span><span style="color:#FFA657">T</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 检查并执行相应操作</span></span>
+<span class="line"><span style="color:#FFA657">    T</span><span style="color:#FF7B72">-->></span><span style="color:#FFA657">H</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 修改结果与测试结果</span></span>
+<span class="line"><span style="color:#FFA657">    H</span><span style="color:#FF7B72">->></span><span style="color:#FFA657">M</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 补入执行结果</span></span>
+<span class="line"><span style="color:#FFA657">    M</span><span style="color:#FF7B72">-->></span><span style="color:#FFA657">H</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 根据结果继续修复，或提出完成</span></span>
+<span class="line"><span style="color:#FFA657">    H</span><span style="color:#FF7B72">->></span><span style="color:#FFA657">H</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 核对验收条件与停止条件</span></span>
+<span class="line"><span style="color:#FFA657">    H</span><span style="color:#FF7B72">-->></span><span style="color:#FFA657">U</span><span style="color:#FF7B72">:</span><span style="color:#A5D6FF"> 交付修改、验证结果及未完成项</span></span></code></pre>
+<p>其中，<strong>模型根据当前信息提出下一步动作；Harness（运行时框架）组织信息、执行获准的动作，并把结果交回模型。</strong> 文件系统、测试程序等提供实际操作环境。</p>
+<p>模型输出“运行测试”只是一项请求。Harness 必须真正调用测试程序，下一轮模型才能知道测试通过、失败，还是根本没有启动。这个反馈会改变后续动作，因此整个任务可能需要多轮模型调用。</p>
+<h3 id="12-harness-的主要模块">1.2 Harness 的主要模块</h3>
+<p>上面的循环能够推进任务，但长任务还会遇到信息过多、工具不可用、误操作和执行中断等问题。Harness 围绕这些问题承担五组职责，第 2—6 章分别展开。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>职责</th><th>解决的问题</th><th>在代码缺陷修复任务中的作用</th></tr></thead><tbody><tr><td><a href="#2-%E6%89%A7%E8%A1%8C%E6%8E%A7%E5%88%B6">执行控制</a></td><td>决定如何推进与何时停止</td><td>安排排查步骤，避免反复修改却没有进展</td></tr><tr><td><a href="#3-%E4%B8%8A%E4%B8%8B%E6%96%87%E4%B8%8E%E7%9F%A5%E8%AF%86">上下文与知识</a></td><td>给模型提供当前需要的信息</td><td>保留接口约束，选择相关代码和错误日志</td></tr><tr><td><a href="#4-%E8%83%BD%E5%8A%9B%E6%8E%A5%E5%85%A5">能力接入</a></td><td>把动作请求交给实际执行端</td><td>接入文件读写和测试工具，回传真实结果</td></tr><tr><td><a href="#5-%E5%AE%89%E5%85%A8%E9%9A%94%E7%A6%BB">安全隔离</a></td><td>限制可以访问和修改的范围</td><td>允许修改项目文件，限制访问密钥与无关目录</td></tr><tr><td><a href="#6-%E9%AA%8C%E8%AF%81%E4%B8%8E%E6%81%A2%E5%A4%8D">验证与恢复</a></td><td>确认结果，并在中断后继续</td><td>检查测试与代码变更，恢复尚未完成的工作</td></tr></tbody></table>
+<p>这五组职责作用于同一个执行循环，不要求分别部署为五个服务。下图展示 Harness 内部各模块与模型、外部工具的关系；实线表示主要调用与反馈路径，虚线表示结果对上下文和任务状态的更新。</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="mermaid"><code><span class="line"><span style="color:#FF7B72">flowchart</span><span style="color:#D2A8FF"> TB</span></span>
+<span class="line"><span style="color:#FFA657">    U</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">用户</span><span style="color:#FF7B72">]</span><span style="color:#FF7B72"> -->|</span><span style="color:#A5D6FF">目标与约束</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> C</span></span>
+<span class="line"><span style="color:#FF7B72">    subgraph</span><span style="color:#FFA657"> H</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">Harness</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">        C</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">执行控制</span><span style="color:#FF7B72">]</span><span style="color:#FF7B72"> -->|</span><span style="color:#A5D6FF">组织本轮输入</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> K</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">上下文与知识</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">        C </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">待执行动作</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> S</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">安全隔离</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">        S </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">获准执行</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> T</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">能力接入</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">        T </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">实际结果</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> V</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">验证与恢复</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">        V </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">继续</span><span style="color:#E6EDF3">、</span><span style="color:#A5D6FF">恢复或结束</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> C</span></span>
+<span class="line"><span style="color:#FFA657">        V </span><span style="color:#FF7B72">-.->|</span><span style="color:#A5D6FF">更新记录与状态</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> K</span></span>
+<span class="line"><span style="color:#FF7B72">    end</span></span>
+<span class="line"><span style="color:#FFA657">    K </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">上下文</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> M</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">模型</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    M </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">动作请求或完成建议</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> C</span></span>
+<span class="line"><span style="color:#FFA657">    T </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">调用</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> E</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">文件</span><span style="color:#E6EDF3">、</span><span style="color:#A5D6FF">测试工具与外部服务</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    E </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">执行反馈</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> T</span></span>
+<span class="line"><span style="color:#FFA657">    C </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">交付结果或说明未完成项</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> U</span></span></code></pre>
+<p>安全隔离还约束上下文读取和结果交付；图中突出执行前的权限检查。验证结果回到执行控制后，系统才能决定继续工作还是结束任务。</p>
+<h2 id="2-执行控制">2. 执行控制</h2>
+<p>代码缺陷修复的目标可以事先确定，具体要读哪些文件、尝试几次修改，往往要看到中间结果才能决定。执行控制负责安排这些动作，同时限制无效探索。</p>
+<h3 id="21-固定流程与动态决策">2.1 固定流程与动态决策</h3>
+<p>工作流（Workflow）由代码预先规定步骤和分支；Agent 则让模型根据反馈选择下一步。选择的依据是任务中有多少过程能够提前确定。</p>
+<ul>
+<li><strong>固定流程</strong>：格式化代码、运行指定测试、汇总结果，执行顺序通常稳定。用代码编排，便于测试和估算耗时。</li>
+<li><strong>动态决策</strong>：测试失败后，可能需要追踪调用关系、检查配置或修改实现。允许模型根据证据选择动作，可以应对事先没有列出的情况。</li>
+<li><strong>混合架构</strong>：用固定流程约束入口、权限和验收，在排查阶段允许模型探索。例如模型可以选择修复方案，但提交修改前必须运行指定检查。</li>
+</ul>
+<p>混合架构把探索集中在确实存在不确定性的环节。即使模型认为某一步可以省略，程序规定的权限与验收检查仍然要执行。</p>
+<h3 id="22-react-与-plan-and-execute">2.2 ReAct 与 Plan-and-Execute</h3>
+<p>最直接的执行方式是看一次结果，再决定下一步。<a href="https://arxiv.org/abs/2210.03629">ReAct</a> 将推理与行动交替组织：模型根据观察选择操作，再用新的工具反馈修正判断。它适合下一步高度依赖当前结果的任务。</p>
+<p>但任务较长时，只关注眼前反馈可能遗漏后续工作。例如修复了当前报错，却忘记检查公开接口是否改变。规划后执行（Plan-and-Execute）先把任务拆成阶段步骤，再在执行过程中记录各阶段的完成情况，并根据新发现调整后续步骤。</p>
+<p>它可以与 ReAct 结合：先明确整体步骤，每个阶段内再根据工具反馈逐步行动。具体过程如下：</p>
+<ol>
+<li><strong>拆分步骤</strong>：执行前明确定位原因、修改实现、验证结果等阶段及各自的完成条件。</li>
+<li><strong>执行并记录进度</strong>：根据工具反馈选择操作，记录已完成步骤和待处理问题。</li>
+<li><strong>调整后续步骤</strong>：发现原因判断有误时，更新排查方向，同时保留接口检查等必要工作。</li>
+</ol>
+<p>预先列出的步骤可以调整，避免后续操作持续建立在未经验证的猜测上。</p>
+<h3 id="23-多智能体分工">2.3 多智能体分工</h3>
+<p>多智能体（Multi-agent）让多个智能体分别维护上下文、执行子任务，再交换结果。它在工作可以有效拆分时有价值：一个执行者检查实现，另一个检查测试覆盖，各自只需加载相关资料。</p>
+<p>常见组织方式的区别在于任务由谁分配、成员如何交流：</p>
+<ul>
+<li><strong>主从委派</strong>：主智能体拆分任务，子智能体回报结果，由主智能体整合。任务可以在执行中动态创建。<a href="https://learn.chatgpt.com/docs/agent-configuration/subagents">Codex Subagents</a>、<a href="https://code.claude.com/docs/en/sub-agents">Claude Code Subagents</a> 和 <a href="https://www.kimi.com/en/help/agent/agent-swarm">Kimi Agent Swarm</a> 都可作为相关实现的参考；Agent Swarm 更强调大规模并行编排。</li>
+<li><strong>团队协作</strong>：负责人协调进度，成员通过共享任务和直接通信处理依赖。<a href="https://code.claude.com/docs/en/agent-teams">Claude Code Agent Teams</a> 是相关实现的参考，适合需要成员持续交换发现的工作。</li>
+</ul>
+<p>分工也会产生代价。两个执行者同时修改同一文件，可能互相覆盖；只回传结论而不提供依据，主智能体难以验证结果。因此，委派时要明确工作范围和交付内容，汇总时要检查证据与冲突。子任务越依赖彼此的实时进展，并行带来的收益越容易被协调成本抵消。</p>
+<h3 id="24-进展判断与停止条件">2.4 进展判断与停止条件</h3>
+<p>循环能够继续运行，不等于任务正在接近完成。重复读取同一文件、原样重试失败操作，都可能消耗资源却没有增加有效信息。</p>
+<p>运行时需要同时检查进展与预算：</p>
+<ul>
+<li><strong>有新进展</strong>：获得新证据、排除一种原因，或通过一项检查，可以继续。</li>
+<li><strong>没有新进展</strong>：要求模型调整方法、补充缺失信息；持续无效时停止。</li>
+<li><strong>达到资源上限</strong>：根据步数、时间或费用限制结束执行，保存进度并说明未完成项。</li>
+</ul>
+<p>完成任务与耗尽预算是两种不同的结束原因。最终报告应明确区分，结果验收的方法见第 6 章。</p>
+<h2 id="3-上下文与知识">3. 上下文与知识</h2>
+<p>模型每次判断都依赖本次收到的信息。执行过的工具、保存的文件和此前发现的事实，只有被放入上下文，或被再次读取，才能影响这一步判断。因此，Harness 需要持续选择和维护信息。</p>
+<h3 id="31-当前输入与持久记录">3.1 当前输入与持久记录</h3>
+<p>代码缺陷修复过程中，完整日志可能很长，而下一步只需要报错位置、相关代码和接口约束。保存完整记录与提供当前输入，是两个不同的工作。可以按用途区分四种信息：</p>
+<ul>
+<li><strong>上下文（context）</strong>：这次调用实际交给模型的内容，例如相关代码与最新测试错误。</li>
+<li><strong>任务状态（state）</strong>：任务进行到哪里，例如已修改哪些文件、哪些检查尚未完成。</li>
+<li><strong>历史（history）</strong>：发生过什么，例如历次读取、修改和测试的原始记录。</li>
+<li><strong>记忆（memory）</strong>：后续任务可以复用的信息，例如项目采用的测试命令和已确认的工作约定。</li>
+</ul>
+<p>历史中的一次测试失败，不应自动成为“这个项目的测试无法通过”这样的长期记忆。前者记录一次事件，后者会影响未来判断，需要更充分的依据。</p>
+<p>存储方式随用途选择：项目约定适合可审查的文档，任务状态适合可靠的结构化存储，大日志和产物可以单独保存。只有需要从大量记录中按内容寻找信息时，才进一步考虑全文或向量检索；相关方法见 <a href="/articles/rag-retrieval-systems/">RAG 检索系统</a>。</p>
+<h3 id="32-长任务中的信息取舍">3.2 长任务中的信息取舍</h3>
+<p>如果每轮都附上全部历史，日志与重复内容会不断增加，既占用上下文，也可能掩盖早期的重要约束。直接删除旧消息又可能丢失“保持公开接口不变”这样的要求。</p>
+<p>处理长任务时，可以分别安排当前信息、旧记录和继续执行所需的摘要：</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="mermaid"><code><span class="line"><span style="color:#FF7B72">flowchart</span><span style="color:#D2A8FF"> LR</span></span>
+<span class="line"><span style="color:#FFA657">    A</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">消息</span><span style="color:#E6EDF3">、</span><span style="color:#A5D6FF">代码与工具结果</span><span style="color:#FF7B72">]</span><span style="color:#FF7B72"> --></span><span style="color:#FFA657"> B</span><span style="color:#FF7B72">{</span><span style="color:#A5D6FF">如何保留</span><span style="color:#FF7B72">}</span></span>
+<span class="line"><span style="color:#FFA657">    B </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> C</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">当前需要</span><span style="color:#E6EDF3">：</span><span style="color:#A5D6FF">放入上下文</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    B </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> D</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">完整日志</span><span style="color:#E6EDF3">：</span><span style="color:#A5D6FF">保存到文件</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    B </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> E</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">任务进度</span><span style="color:#E6EDF3">：</span><span style="color:#A5D6FF">整理为摘要</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    D </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">需要核对时读取</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> C</span></span>
+<span class="line"><span style="color:#FFA657">    E </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> C</span></span></code></pre>
+<p>摘要应保留目标与约束、已完成工作、关键证据的位置、失败尝试和下一步。只写“已完成初步排查”，无法帮助后续执行；写清排除了什么原因、依据在哪里，才能避免重复尝试。</p>
+<p>压缩会丢失细节，因此重要判断仍需能回到原始记录核对。</p>
+<h3 id="33-记忆的写入与读取">3.3 记忆的写入与读取</h3>
+<p>跨任务复用知识可以减少重复探索，但错误或过期的记忆也会反复影响决策。例如项目已经更换测试命令，继续沿用旧约定就会让每次任务都从错误操作开始。</p>
+<h4 id="331-写入保留经过确认的可复用信息">3.3.1 写入：保留经过确认的可复用信息</h4>
+<ul>
+<li><strong>时机</strong>：任务结束或新事实得到确认后，再判断是否值得长期保留。</li>
+<li><strong>内容</strong>：项目约定、用户明确表达的偏好、经过验证的方法；临时猜测留在当前任务记录中。</li>
+<li><strong>路径</strong>：从记录中提取候选，核对来源和保存权限，再更新已有记忆。新旧约定冲突时，明确替代或失效关系，避免两条同时生效。</li>
+</ul>
+<p>记忆还应保留来源和适用范围。某个分支中的临时做法，不能直接变成整个项目的通用规则；涉及敏感信息时，还要限制保存与读取范围。</p>
+<h4 id="332-读取核对当前任务是否适用">3.3.2 读取：核对当前任务是否适用</h4>
+<ul>
+<li><strong>时机</strong>：开始任务，或执行中缺少既有约定与经验时。</li>
+<li><strong>内容</strong>：与当前目标、项目和版本相关，且允许访问的记录。</li>
+<li><strong>路径</strong>：先限定范围，再查找候选；核对有效时间与来源后，将必要内容加入上下文。</li>
+</ul>
+<p>当记忆与当前文件冲突时，应检查差异的来源，不能仅因记忆曾经有效就继续采用。记忆用于帮助判断，实际业务状态仍需从对应系统核实。</p>
+<h3 id="34-skill按需加载任务方法">3.4 Skill：按需加载任务方法</h3>
+<p>记忆可以保存“项目使用什么测试命令”，技能（Skill）则组织“这类任务应怎样完成”。技能与普通提示词的区别主要在组织和复用方式：它把任务说明、参考资料、脚本和模板放在一个可维护的资源包中，供相关任务按需读取。</p>
+<p>以代码缺陷修复为例，技能可以说明如何复现问题、哪些接口不能修改、需要执行哪些检查。模型仍然根据具体错误选择操作；技能提供的是方法与约束。</p>
+<p>为了避免每次任务都加载全部资料，技能通常分层提供信息：</p>
+<ol>
+<li><strong>先看名称与简介</strong>：判断是否适合当前任务。</li>
+<li><strong>匹配后读取入口说明</strong>：如 <code>SKILL.md</code>，了解流程和验收要求。</li>
+<li><strong>执行中按需读取资料或运行脚本</strong>：只加载当前步骤需要的内容。</li>
+</ol>
+<p>这种方式称为渐进披露（progressive disclosure）。它降低了无关流程占用上下文的机会，但能否选对技能，仍取决于清晰的适用范围与说明。技能中的指令也不能授予额外权限，实际动作继续由运行时检查。</p>
+<h2 id="4-能力接入">4. 能力接入</h2>
+<p>有了目标和相关信息，模型还需要一种方式表达动作。能力接入负责把这个请求交给正确的工具或远端智能体，并把执行结果带回循环。</p>
+<h3 id="41-工具调用从请求到执行">4.1 工具调用：从请求到执行</h3>
+<p>函数调用（Function Calling，也称工具调用）让模型输出工具名称和参数。应用事先提供工具说明与参数结构，模型据此生成请求，应用再检查并执行。</p>
+<p>例如，读取文件的请求可以用以下 JSON 表达。这里展示的是动作内容，各模型接口的外层格式可能不同：</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#E6EDF3">{</span></span>
+<span class="line"><span style="color:#7EE787">  "name"</span><span style="color:#E6EDF3">: </span><span style="color:#A5D6FF">"read_file"</span><span style="color:#E6EDF3">,</span></span>
+<span class="line"><span style="color:#7EE787">  "arguments"</span><span style="color:#E6EDF3">: {</span></span>
+<span class="line"><span style="color:#7EE787">    "path"</span><span style="color:#E6EDF3">: </span><span style="color:#A5D6FF">"src/payment.py"</span></span>
+<span class="line"><span style="color:#E6EDF3">  }</span></span>
+<span class="line"><span style="color:#E6EDF3">}</span></span></code></pre>
+<p>应用收到请求后，先检查参数和权限，再执行读取并返回结果：</p>
+<ul>
+<li><strong>参数是否合规</strong>：是否提供了 <code>path</code>，值是否为字符串。JSON Schema 用于声明这类结构约束。</li>
+<li><strong>操作是否获准</strong>：路径是否在允许访问的目录内。参数格式正确，不代表访问被授权。</li>
+<li><strong>执行是否成功</strong>：工具可能返回文件内容，也可能报告文件不存在或读取失败。模型需要收到实际结果才能继续判断。</li>
+</ul>
+<p>部分接口提供严格参数模式。例如 OpenAI 的 <code>strict: true</code> 约束生成参数遵循声明的 JSON Schema。具体字段要求见<a href="https://developers.openai.com/api/docs/guides/function-calling#strict-mode">函数调用文档</a>。</p>
+<p>工具结果需要让运行时区分成功、失败和仍在执行，并把结果与对应请求关联。对修改文件等写操作，还应返回变更信息，便于后续核对。只有“操作已提交”时，不能把它直接报告为“任务已完成”。</p>
+<h3 id="42-mcp复用外部工具与数据服务">4.2 MCP：复用外部工具与数据服务</h3>
+<p>如果每个智能体应用都单独对接文件、数据库和业务服务，同一种能力就需要重复编写接入代码。<a href="https://modelcontextprotocol.io/">模型上下文协议</a>（Model Context Protocol，MCP）为发现和调用外部能力提供共同接口，使能力服务能够被兼容的应用复用。</p>
+<p>在这条调用链中，模型提出动作请求，宿主应用通过 MCP 客户端访问服务端，再把结果返回模型：</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="mermaid"><code><span class="line"><span style="color:#FF7B72">flowchart</span><span style="color:#D2A8FF"> LR</span></span>
+<span class="line"><span style="color:#FFA657">    M</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">模型</span><span style="color:#FF7B72">]</span><span style="color:#FF7B72"> -->|</span><span style="color:#A5D6FF">工具名称与参数</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> H</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">宿主应用</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    H </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> C</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">MCP 客户端</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    C </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">协议请求</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> S</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">MCP 服务端</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    S </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> T</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">文件</span><span style="color:#E6EDF3">、</span><span style="color:#A5D6FF">数据库或业务服务</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    T </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">实际结果</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> S</span></span>
+<span class="line"><span style="color:#FFA657">    S </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> C</span></span>
+<span class="line"><span style="color:#FFA657">    C </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> H</span></span>
+<span class="line"><span style="color:#FFA657">    H </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">工具结果</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> M</span></span></code></pre>
+<p>函数调用与 MCP 因此可以组合使用：前者表达模型想执行的动作，后者处理应用与能力服务之间的连接。MCP 除工具外，也可以提供资源和提示模板，分别用于补充上下文与复用交互说明。</p>
+<p>工具与数据服务的接入方式，取决于它们是否需要跨应用共享和独立维护：</p>
+<ul>
+<li><strong>应用内部的少量工具</strong>：直接注册和执行即可，减少额外通信环节。</li>
+<li><strong>需要跨应用共享的能力</strong>：通过 MCP 独立发布，统一维护接入接口。各应用仍需处理认证、权限和执行错误。</li>
+</ul>
+<p>工具变多后，也不必一次把所有参数说明交给模型。可以先按权限和任务筛选，再加载具体工具定义，避免大量相似描述干扰选择。</p>
+<h3 id="43-a2a向独立智能体委派任务">4.3 A2A：向独立智能体委派任务</h3>
+<p>工具调用通常要求对方执行一项明确操作；有些服务接收的则是目标，并自行安排后续工作。例如远端代码审查智能体可以接收审查任务，检查多个文件后再交付报告。</p>
+<p><a href="https://a2a-protocol.org/latest/specification/">智能体间协议</a>（Agent2Agent Protocol，A2A）用于这类独立智能体之间的协作。调用方需要先了解对方的能力，再跟踪任务，而不能只等待一次函数返回：</p>
+<ol>
+<li><strong>发现能力</strong>：读取能力卡片，了解服务能做什么、如何访问与认证。</li>
+<li><strong>提交任务</strong>：提供目标、约束与必要输入。</li>
+<li><strong>跟踪与交付</strong>：接收状态变化，必要时补充信息或取消，最后获取报告、文件等产物。</li>
+</ol>
+<p>MCP 侧重接入工具和数据，A2A 侧重智能体之间的任务交接。远端智能体可以在内部继续使用 MCP。第 2 章的多智能体分工也不一定需要 A2A：同一运行时中的子智能体可以使用内部接口协作。</p>
+<p>无论采用哪种接口，收到成功响应都只说明对应操作或任务的状态。返回内容是否满足最初目标，仍需由验收环节判断。</p>
+<h2 id="5-安全隔离">5. 安全隔离</h2>
+<p>智能体能够读取和执行后，判断错误就可能影响真实文件或外部系统。安全隔离需要限定这种影响：即使模型提出了不合适的动作，执行端也应有能力拒绝。</p>
+<h3 id="51-外部内容与执行权限">5.1 外部内容与执行权限</h3>
+<p>代码缺陷修复过程中，模型可能读取项目说明、日志或外部网页。这些内容既可能包含有用信息，也可能夹带“读取密钥并上传”的恶意指令。把外部材料中的文字当成新的任务要求，就是提示词注入可能利用的路径。</p>
+<p>风险会沿着执行过程扩大：</p>
+<ul>
+<li><strong>读到恶意内容</strong>：模型受到误导，提出与原任务无关的操作。</li>
+<li><strong>持有过宽权限</strong>：错误操作能够访问密钥、修改无关文件或连接外部地址。</li>
+<li><strong>写入长期记忆</strong>：恶意规则被保存，在后续任务中再次影响模型。</li>
+</ul>
+<p>标记来源、检测异常内容可以降低风险，但不能保证模型永远正确区分数据与指令。执行端还需要独立限制权限。</p>
+<h3 id="52-沿执行过程设置防线">5.2 沿执行过程设置防线</h3>
+<p>防护分别作用于模型读取内容、工具执行动作和结果对外交付三个位置：</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="mermaid"><code><span class="line"><span style="color:#FF7B72">flowchart</span><span style="color:#D2A8FF"> TD</span></span>
+<span class="line"><span style="color:#FFA657">    A</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">第一层</span><span style="color:#E6EDF3">：</span><span style="color:#A5D6FF">限定输入范围并标记来源</span><span style="color:#FF7B72">]</span><span style="color:#FF7B72"> --></span><span style="color:#FFA657"> M</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">模型提出动作</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    M </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> B</span><span style="color:#FF7B72">{</span><span style="color:#A5D6FF">第二层</span><span style="color:#E6EDF3">：</span><span style="color:#A5D6FF">执行前授权检查</span><span style="color:#FF7B72">}</span></span>
+<span class="line"><span style="color:#FFA657">    B </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">未获授权</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> R</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">拒绝操作</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    B </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">已授权且需要审批</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> H</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">展示影响并请求审批</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    B </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">已授权且无需审批</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> X</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">在受限环境中执行</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    H </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">批准</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> X</span></span>
+<span class="line"><span style="color:#FFA657">    H </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">拒绝</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> R</span></span>
+<span class="line"><span style="color:#FFA657">    X </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> C</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">第三层</span><span style="color:#E6EDF3">：</span><span style="color:#A5D6FF">检查返回内容与交付目标</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    C </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> D</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">记录结果</span><span style="color:#E6EDF3">，</span><span style="color:#A5D6FF">返回模型或交付用户</span><span style="color:#FF7B72">]</span></span></code></pre>
+<ol>
+<li><strong>第一层：输入与上下文防护。</strong> 只读取任务所需的资料，并保留来源；外部页面里的要求不能自动获得用户指令的权限。候选记忆也需检查，防止恶意内容被长期保留。</li>
+<li><strong>第二层：授权与执行隔离。</strong> 根据工具、资源和动作检查权限；通过沙箱（sandbox）限制文件与网络访问。高风险操作在授权范围内增加审批，并展示具体影响。密钥由执行端管理，避免直接进入模型上下文。</li>
+<li><strong>第三层：输出检查与审计。</strong> 检查即将返回或发送的数据及接收目标，减少敏感信息外泄；记录实际执行与审批结果，为追查和恢复提供依据。</li>
+</ol>
+<p>这些防线分别限制信息进入、动作执行和数据离开。审批不能替代底层权限检查，沙箱也不能自动判断每项业务操作是否合理。</p>
+<h2 id="6-验证与恢复">6. 验证与恢复</h2>
+<p>安全检查确认动作是否允许，结果验证确认任务是否完成。对代码缺陷修复而言，文件修改成功只说明改动已经写入；是否修好，还需要测试结果与接口检查支持。</p>
+<h3 id="61-验收与反馈修改">6.1 验收与反馈修改</h3>
+<p>验收标准应在执行前明确，避免模型仅凭自己的解释宣布成功。代码缺陷修复至少需要检查目标测试、相关回归测试，以及“公开接口不变”等约束。检查通过能支持相应结论，但不意味着所有可能的错误都已被覆盖。</p>
+<p>检查发现问题后，可以把具体反馈交回模型，让它定向修改。反思（Reflection）用于这种根据反馈改进结果的过程，<a href="https://arxiv.org/abs/2303.11366">Reflexion</a> 是相关研究之一。运行时需要把检查、修改和停止条件连起来：</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="mermaid"><code><span class="line"><span style="color:#FF7B72">flowchart</span><span style="color:#D2A8FF"> TD</span></span>
+<span class="line"><span style="color:#FFA657">    A</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">按验收标准检查结果</span><span style="color:#FF7B72">]</span><span style="color:#FF7B72"> --></span><span style="color:#FFA657"> B</span><span style="color:#FF7B72">{</span><span style="color:#A5D6FF">是否达标</span><span style="color:#FF7B72">}</span></span>
+<span class="line"><span style="color:#FFA657">    B </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">是</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> C</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">交付产物与验证依据</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    B </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">否</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> D</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">指出失败项与相关证据</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    D </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> E</span><span style="color:#FF7B72">{</span><span style="color:#A5D6FF">仍有进展且预算允许</span><span style="color:#FF7B72">}</span></span>
+<span class="line"><span style="color:#FFA657">    E </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">是</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> F</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">针对问题修改</span><span style="color:#FF7B72">]</span></span>
+<span class="line"><span style="color:#FFA657">    F </span><span style="color:#FF7B72">--></span><span style="color:#FFA657"> A</span></span>
+<span class="line"><span style="color:#FFA657">    E </span><span style="color:#FF7B72">-->|</span><span style="color:#A5D6FF">否</span><span style="color:#FF7B72">|</span><span style="color:#FFA657"> G</span><span style="color:#FF7B72">[</span><span style="color:#A5D6FF">停止并说明未完成项</span><span style="color:#FF7B72">]</span></span></code></pre>
+<p>反馈应包含失败的测试或具体不一致之处。“再仔细检查”这类模糊反馈没有指出具体问题，容易让模型重复原有判断；外部检查给出的错误位置和实际结果，才有助于改变下一步动作。</p>
+<h3 id="62-中断恢复与安全重试">6.2 中断恢复与安全重试</h3>
+<p>上下文摘要帮助模型继续理解任务，检查点（checkpoint）则保存已经完成的步骤和产物位置，帮助运行时恢复执行。恢复时必须再核对实际环境：进程可能在文件已写入、完成状态尚未保存时中断。</p>
+<p>因此，恢复通常先读取进度，再检查已有产物和正在执行的操作，最后继续未完成部分。记录显示“准备修改文件”时，应先确认文件是否已经改变，避免再次应用相同修改。</p>
+<p>工具超时也有类似的不确定性：<strong>超时表示没有及时收到结果，不代表服务端没有执行。</strong> 后续动作取决于错误性质：</p>
+<ul>
+<li><strong>临时故障</strong>：确认重复执行安全后，限定次数重试；持续失败则停止或更换可用服务。</li>
+<li><strong>参数错误</strong>：补充或修正参数，原样重试不会解决问题。</li>
+<li><strong>权限不足</strong>：停止该操作，按授权流程处理。</li>
+<li><strong>写操作结果未知</strong>：先查询实际结果；服务支持幂等控制时，用同一请求标识重试，避免重复产生效果。无法确认且后果重要时，交由人工处理。</li>
+</ul>
+<p>多步操作中途失败时，有些变更可以撤销，有些只能通过后续业务操作补救。恢复过程应明确哪些已完成、哪些已撤销、哪些仍需处理，不能一概把任务重新执行一遍。</p>
+<h3 id="63-执行记录与持续评测">6.3 执行记录与持续评测</h3>
+<p>一次失败要能追查原因，多次运行才能判断系统是否稳定。执行记录保存任务经过，评测则用一组固定任务比较模型、提示词或 Harness 修改前后的表现。</p>
+<p>记录与评测围绕以下内容展开：</p>
+<ul>
+<li><strong>还原过程</strong>：保留模型与工具配置、动作参数、实际结果及必要审批信息；敏感内容应脱敏或限制访问。</li>
+<li><strong>覆盖失败情况</strong>：除了正常任务，也测试信息不足、工具故障、权限不足和恶意输入。</li>
+<li><strong>同时检查结果与代价</strong>：比较任务完成率、错误或重复操作，以及耗时和费用。不同执行路径只要满足约束，都可以是有效解法。</li>
+</ul>
+<p>记录和检查可以通过钩子（hook）或中间件（middleware）接入：钩子在指定时点触发处理，中间件封装调用前后的通用逻辑。例如工具执行前检查权限，执行后保存结果，任务结束时运行验收。它们把前述职责放入实际调用过程，避免仅依赖模型自行遵守说明。</p>
+<h2 id="总结">总结</h2>
+<p>Agent 的基本过程是根据反馈反复选择和执行动作。Harness 让这个过程能够持续工作：控制推进方式，提供必要信息，连接工具，限制操作范围，并用实际结果判断完成与恢复。设计时应先建立可检查的执行闭环，再根据任务中出现的问题增加计划、记忆或多智能体协作。</p>
+<h2 id="参考资料">参考资料</h2>
+<h3 id="agent-架构与工作模式">Agent 架构与工作模式</h3>
+<ul>
+<li>Yao et al., <a href="https://arxiv.org/abs/2210.03629">ReAct: Synergizing Reasoning and Acting in Language Models</a></li>
+<li>Shinn et al., <a href="https://arxiv.org/abs/2303.11366">Reflexion: Language Agents with Verbal Reinforcement Learning</a></li>
+<li>Anthropic, <a href="https://www.anthropic.com/engineering/building-effective-agents">Building Effective AI Agents</a></li>
+<li>Anthropic, <a href="https://claude.com/resources/articles/common-workflow-patterns-for-ai-agents-and-when-to-use-them">Common Workflow Patterns for AI Agents</a></li>
+<li>OpenAI, <a href="https://developers.openai.com/api/docs/guides/agents">Agents</a></li>
+<li>OpenAI, <a href="https://developers.openai.com/api/docs/guides/agents-api/overview">Agents API</a></li>
+</ul>
+<h3 id="function-callingmcp-与-skills">Function calling、MCP 与 Skills</h3>
+<ul>
+<li>OpenAI, <a href="https://developers.openai.com/api/docs/guides/function-calling">Function Calling</a></li>
+<li>OpenAI, <a href="https://developers.openai.com/api/docs/guides/tools-tool-search">Tool Search</a></li>
+<li>OpenAI, <a href="https://developers.openai.com/api/docs/guides/tools-programmatic-tool-calling">Programmatic Tool Calling</a></li>
+<li>Model Context Protocol, <a href="https://modelcontextprotocol.io/specification/2026-07-28">Specification</a></li>
+<li>Model Context Protocol, <a href="https://blog.modelcontextprotocol.io/posts/2026-07-28/">The 2026-07-28 Specification</a></li>
+<li>MCP Extensions, <a href="https://skills.extensions.modelcontextprotocol.io/specification/stable/skills">Skills Extension</a></li>
+<li>OpenAI, <a href="https://developers.openai.com/api/docs/guides/tools-skills">Skills</a></li>
+<li>OpenAI, <a href="https://developers.openai.com/plugins/concepts/skills">Skills in Plugins</a></li>
+</ul>
+<h3 id="a2a-与云端-agent">A2A 与云端 Agent</h3>
+<ul>
+<li>Agent2Agent Project, <a href="https://a2a-protocol.org/latest/specification/">A2A Protocol Specification</a></li>
+<li>Google, <a href="https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/">Announcing the Agent2Agent Protocol</a></li>
+<li>Google Cloud, <a href="https://docs.cloud.google.com/marketplace/docs/partners/ai-agents">Offer AI Agents through Google Cloud Marketplace</a></li>
+<li>Google Cloud, <a href="https://docs.cloud.google.com/gemini-enterprise-cx/cx-agent-studio/tool/a2a-protocol">A2A Protocol Tools in CX Agent Studio</a></li>
+<li>Google Cloud, <a href="https://cloud.google.com/blog/topics/customers/box-ai-agents-with-googles-agent-2-agent-protocol">Box AI Agents with Agent2Agent</a></li>
+<li>OpenAI, <a href="https://learn.chatgpt.com/workspace-agents/trigger-runs">Trigger Workspace Agent Runs</a></li>
+<li>OpenAI, <a href="https://learn.chatgpt.com/docs/dots/tasks-and-memory">Tasks and Memory</a></li>
+</ul>
+<h3 id="记忆上下文安全与自进化">记忆、上下文、安全与自进化</h3>
+<ul>
+<li>OpenAI, <a href="https://developers.openai.com/api/docs/guides/compaction">Compaction</a></li>
+<li>OpenAI, <a href="https://developers.openai.com/cookbook/examples/agents_sdk/building_reliable_agents_memory_compaction">Building Reliable Agents with Memory and Compaction</a></li>
+<li>OpenAI, <a href="https://help.openai.com/en/articles/8590148-memory-in-chatgpt">Memory in ChatGPT</a></li>
+<li>Letta, <a href="https://docs.letta.com/v1-sdk/memory/memory-blocks">Memory Blocks</a></li>
+<li>Chhikara et al., <a href="https://arxiv.org/abs/2504.19413">Mem0</a></li>
+<li>Rasmussen et al., <a href="https://arxiv.org/abs/2501.13956">Zep Temporal Knowledge Graph Memory</a></li>
+<li>Latimer et al., <a href="https://arxiv.org/abs/2512.12818">Hindsight is 20/20</a></li>
+<li><a href="https://arxiv.org/abs/2609.34385">Just-In-Time Agent Memory</a></li>
+<li>OWASP, <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">Top 10 for Agentic Applications 2026</a></li>
+<li>NIST, <a href="https://www.nist.gov/news-events/news/2026/02/new-concept-paper-identity-and-authority-software-agents">Software and AI Agent Identity and Authorization</a></li>
+<li>NIST 人工智能标准与创新中心（Center for AI Standards and Innovation，CAISI）, <a href="https://www.nist.gov/blogs/caissi-research-blog/insights-ai-agent-security-large-scale-red-teaming-competition">Large-Scale AI Agent Red Teaming</a></li>
+<li>Anthropic, <a href="https://www.anthropic.com/engineering/claude-code-sandboxing">Agent Sandboxing</a></li>
+<li>Nous Research, <a href="https://github.com/NousResearch/hermes-agent">Hermes Agent</a></li>
+<li>Zhang et al., <a href="https://arxiv.org/abs/2606.09498">Self-Harness</a></li>
+<li>Luo et al., <a href="https://arxiv.org/abs/2607.13683">Self-Evolving Agent Harnesses</a></li>
+</ul></div></article><script type="module" src="/_astro/ArticleLayout.astro_astro_type_script_index_0_lang.DtHUSXbE.js"></script></main><footer class="site-footer"><p>© 2026 谢bro</p><nav aria-label="页脚导航"><a href="/articles/">文章</a><a href="/rss.xml">RSS</a><a href="https://github.com/xjiajiahao" rel="me">GitHub</a></nav></footer></div><script type="module">document.querySelector(`.theme-toggle`)?.addEventListener(`click`,()=>{let e=document.documentElement.dataset.theme===`dark`?`light`:`dark`;document.documentElement.dataset.theme=e,localStorage.setItem(`theme`,e)});</script></body></html>

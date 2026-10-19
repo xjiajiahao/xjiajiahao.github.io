@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://xjiajiahao.github.io/sitemap-index.xml

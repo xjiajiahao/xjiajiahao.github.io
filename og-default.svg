@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f5f2e9"/>
+  <path d="M0 0h1200v630H0z" fill="url(#g)" opacity=".5"/>
+  <defs><pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0v40" fill="none" stroke="#17233d" stroke-opacity=".08"/></pattern></defs>
+  <rect x="80" y="76" width="1040" height="478" rx="6" fill="#fffdf8" stroke="#17233d" stroke-width="2"/>
+  <rect x="80" y="76" width="18" height="478" fill="#3566a8"/>
+  <text x="148" y="195" fill="#e56a3d" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="5">RESEARCH NOTES</text>
+  <text x="148" y="320" fill="#17233d" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="84" font-weight="700">谢bro的研究笔记</text>
+  <text x="148" y="404" fill="#5f6b7c" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="32">模型 · 检索 · 后训练 · Agent</text>
+  <circle cx="1020" cy="454" r="42" fill="#e56a3d"/>
+</svg>
