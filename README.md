@@ -30,9 +30,9 @@ npm run import:posts
 
 推送到 `main` 分支后，GitHub Actions（`.github/workflows/deploy.yml`）会自动构建并部署到 GitHub Pages。
 
-- 线上地址：https://xjiajiahao.github.io/xiebro-blog/
-- 仓库：https://github.com/xjiajiahao/xiebro-blog
+- 线上地址：https://xjiajiahao.github.io/
+- 仓库：https://github.com/xjiajiahao/xjiajiahao.github.io
 
-站点部署在子路径 `/xiebro-blog/`，因此 `astro.config.mjs` 中配置了 `site` 与 `base`。组件里的站内链接请使用 `src/lib/url.ts` 的 `withBase()`；Markdown 正文中的站内绝对链接由 `rehypeBaseLinks` 插件自动补前缀。
+站点部署在 GitHub Pages 根域名，`astro.config.mjs` 中只配置 `site`，不设置子路径 `base`。组件里的站内链接统一使用 `src/lib/url.ts` 的 `withBase()`。
 
 仓库 Settings → Pages 中的 Source 需要设为 **GitHub Actions**。

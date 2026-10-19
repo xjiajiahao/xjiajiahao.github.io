@@ -1,10 +1,7 @@
-/**
- * 站点部署在子路径时（例如 GitHub Pages 项目页 /xiebro-blog/），
- * 站内绝对链接必须带上 base 前缀，否则会指向域名根目录而 404。
- */
+/** Astro 的站点根路径；当前根域名部署时为 `/`。 */
 export const BASE = import.meta.env.BASE_URL;
 
-/** 给站内绝对路径加上 base 前缀；外部链接与锚点原样返回。 */
+/** 生成站内路径；外部链接与锚点原样返回。 */
 export function withBase(path: string): string {
   if (/^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(path) || path.startsWith("#")) {
     return path;
