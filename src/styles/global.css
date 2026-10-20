@@ -507,7 +507,8 @@ button:not(:disabled) {
 
 .toc ol {
   margin: 0.8rem 0 0;
-  padding-left: 1.25rem;
+  padding-left: 0;
+  list-style: none;
 }
 
 .toc li {

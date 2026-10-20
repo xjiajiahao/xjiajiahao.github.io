@@ -40,7 +40,7 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
       <details class="toc">
         <summary>目录</summary>
         <nav aria-label="文章目录">
-          <ol>
+          <ol role="list">
             {toc.map((heading) => (
               <li class:list={[`depth-${heading.depth}`]}>
                 <a href={`#${heading.slug}`}>{heading.text}</a>
